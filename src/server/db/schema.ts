@@ -60,6 +60,18 @@ export const places = pgTable(
   })
 );
 
+export const dismissedSamples = pgTable(
+  "dismissed_sample",
+  {
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sampleKey: varchar("sample_key", { length: 512 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    pk: uniqueIndex("dismissed_sample_pk").on(table.userId, table.sampleKey)
+  })
+);
+
 export const placeImages = pgTable(
   "place_image",
   {

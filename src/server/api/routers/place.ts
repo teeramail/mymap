@@ -5,7 +5,16 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { placeInputSchema, placeSelectionSchema } from "@/server/api/schemas/place";
 import { samplePlaces } from "@/server/db/sample-places";
-import { placeImages, places, users, type Place, type PlaceImage } from "@/server/db/schema";
+import { dismissedSamples, placeImages, places, users, type Place, type PlaceImage } from "@/server/db/schema";
+import { samplePlaces as samplePlacesData } from "@/server/db/sample-places";
+
+function buildSampleKey(name: string, city: string | null) {
+  return `${name}::${city ?? ""}`;
+}
+
+const sampleKeySet = new Set(
+  samplePlacesData.map((place) => buildSampleKey(place.name, place.city))
+);
 
 type PlaceWithImages = Place & {
   images: PlaceImage[];
@@ -122,13 +131,22 @@ export const placeRouter = createTRPCRouter({
       const deletedRows = await ctx.db
         .delete(places)
         .where(and(eq(places.id, input.id), eq(places.userId, ctx.userId)))
-        .returning({ id: places.id });
+        .returning({ id: places.id, name: places.name, city: places.city });
 
       if (deletedRows.length === 0) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "The place you want to delete was not found."
         });
+      }
+
+      const deletedRow = deletedRows[0]!;
+      const key = buildSampleKey(deletedRow.name, deletedRow.city);
+      if (sampleKeySet.has(key)) {
+        await ctx.db
+          .insert(dismissedSamples)
+          .values({ userId: ctx.userId, sampleKey: key })
+          .onConflictDoNothing();
       }
 
       return { success: true };
@@ -172,10 +190,18 @@ export const placeRouter = createTRPCRouter({
       }
     });
 
-    const existingKeys = new Set(existingPlaces.map((place) => `${place.name}::${place.city ?? ""}`));
-    const placesToInsert = samplePlaces.filter(
-      (place) => !existingKeys.has(`${place.name}::${place.city ?? ""}`)
-    );
+    const dismissedRows = await ctx.db.query.dismissedSamples.findMany({
+      where: eq(dismissedSamples.userId, currentUser.id),
+      columns: { sampleKey: true }
+    });
+
+    const existingKeys = new Set(existingPlaces.map((place) => buildSampleKey(place.name, place.city)));
+    const dismissedKeys = new Set(dismissedRows.map((row) => row.sampleKey));
+
+    const placesToInsert = samplePlaces.filter((place) => {
+      const key = buildSampleKey(place.name, place.city);
+      return !existingKeys.has(key) && !dismissedKeys.has(key);
+    });
 
     if (placesToInsert.length === 0) {
       return {

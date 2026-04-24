@@ -12,8 +12,8 @@ const defaultValues = {
   city: "",
   country: "",
   category: "primary_school",
-  latitude: "13.7563",
-  longitude: "100.5018"
+  latitude: "",
+  longitude: ""
 } as const;
 
 type FormValues = {
@@ -88,6 +88,36 @@ export function PlaceForm(props: {
       setUploadMessage(error.message);
     }
   });
+
+  const handleCoordinatePaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const text = event.clipboardData.getData("text").trim();
+    if (!text.includes(",")) {
+      return;
+    }
+
+    const parts = text.split(",").map((part) => part.trim());
+    if (parts.length !== 2) {
+      return;
+    }
+
+    const [latPart, lngPart] = parts;
+    if (!latPart || !lngPart) {
+      return;
+    }
+
+    const lat = Number(latPart);
+    const lng = Number(lngPart);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return;
+    }
+
+    event.preventDefault();
+    setValues((current) => ({
+      ...current,
+      latitude: latPart,
+      longitude: lngPart
+    }));
+  };
 
   useEffect(() => {
     setValues(createValuesFromPlace(props.editingPlace));
@@ -211,6 +241,7 @@ export function PlaceForm(props: {
             <input
               value={values.latitude}
               onChange={(event) => setValues((current) => ({ ...current, latitude: event.target.value }))}
+              onPaste={handleCoordinatePaste}
               className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-sky-400"
             />
           </label>
@@ -220,10 +251,14 @@ export function PlaceForm(props: {
             <input
               value={values.longitude}
               onChange={(event) => setValues((current) => ({ ...current, longitude: event.target.value }))}
+              onPaste={handleCoordinatePaste}
               className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-white outline-none transition focus:border-sky-400"
             />
           </label>
         </div>
+        <p className="text-xs text-slate-400">
+          Tip: paste &ldquo;lat, lng&rdquo; from Google Maps (e.g. 13.668639, 100.651863) into either field to fill both automatically.
+        </p>
 
         {formError ? (
           <p className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
