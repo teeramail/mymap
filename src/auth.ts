@@ -83,7 +83,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           image: user.image
         });
 
-        token.userId = ensuredUser.id;
+        (token as Record<string, unknown>).userId = ensuredUser.id;
         token.email = ensuredUser.email;
         token.name = ensuredUser.name;
         token.picture = ensuredUser.image ?? undefined;
@@ -93,7 +93,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = typeof token.userId === "string" ? token.userId : "";
+        const tokenUserId = (token as Record<string, unknown>).userId;
+        session.user.id = typeof tokenUserId === "string" ? tokenUserId : "";
         session.user.email = typeof token.email === "string" ? token.email : "";
         session.user.name = typeof token.name === "string" ? token.name : "";
         session.user.image = typeof token.picture === "string" ? token.picture : null;
@@ -115,8 +116,3 @@ declare module "next-auth" {
   }
 }
 
-declare module "next-auth/jwt" {
-  interface JWT {
-    userId?: string;
-  }
-}

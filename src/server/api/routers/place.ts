@@ -7,13 +7,21 @@ import { placeInputSchema, placeSelectionSchema } from "@/server/api/schemas/pla
 import { samplePlaces } from "@/server/db/sample-places";
 import { placeImages, places, users } from "@/server/db/schema";
 
-function normalizePlace<T extends { latitude: string; longitude: string; images?: Array<{ imageUrl: string; altText: string | null }>; }>(place: T) {
+type NormalizeInput = {
+  latitude: string;
+  longitude: string;
+  images?: Array<{ imageUrl: string; altText: string | null }>;
+  [key: string]: unknown;
+};
+
+function normalizePlace<T extends NormalizeInput>(place: T) {
+  const { images, ...rest } = place;
   return {
-    ...place,
+    ...rest,
     latitude: Number(place.latitude),
     longitude: Number(place.longitude),
-    imageUrl: place.images?.[0]?.imageUrl ?? null,
-    imageAlt: place.images?.[0]?.altText ?? null
+    imageUrl: images?.[0]?.imageUrl ?? null,
+    imageAlt: images?.[0]?.altText ?? null
   };
 }
 
