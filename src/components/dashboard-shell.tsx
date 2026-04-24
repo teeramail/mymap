@@ -93,7 +93,9 @@ export function DashboardShell(props: { session: Session }) {
               </p>
             </div>
 
-            <SignOutButton />
+            <div className="flex flex-wrap items-center gap-3">
+              <SignOutButton />
+            </div>
           </div>
         </header>
 
